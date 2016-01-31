@@ -9,19 +9,23 @@ class DecisionActor(Actor):
         self.got = []
 
     def check_ok(self):
-        if set(self.got) == set(self.waiting_for):
-            print "sending destroy message for ", self.waiting_for
-            self.send_destroy()
-            self.send_health_message(True)
-        else:
-            print "wrong decision!"
-            self.send_health_message(False)
-            self.send_uncheck()
-        for i in self.waiting_for:
-            try:
-                self.got.remove(i)
-            except:
-                pass
+        if len(self.got) == len(self.waiting_for):
+            for i in self.waiting_for:
+                if i in self.got:
+                    if set(self.got) == set(self.waiting_for):
+                        print "sending destroy message for ", self.waiting_for
+                        self.send_destroy()
+                        self.send_health_message(True)
+                    else:
+                        print "wrong decision!"
+                        self.send_health_message(False)
+                        self.send_uncheck()
+                    for i in self.waiting_for:
+                        try:
+                            self.got.remove(i)
+                        except:
+                            pass
+                    break
 
     def receive(self, msg):
         payload = msg['payload']
@@ -34,10 +38,7 @@ class DecisionActor(Actor):
                 print "got ", i, "message which I interested in..., got: ", self.got
 
 
-        if len(self.got) == len(self.waiting_for):
-            for i in self.waiting_for:
-                if i in self.got:
-                    self.check_ok()
+        self.check_ok()
 
     def handle_HealthMessage(self, msg):
         self.got = []
