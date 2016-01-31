@@ -1,77 +1,62 @@
 __author__ = 'ceremcem'
 
-
 from aktos_dcs import *
 
-class Enzim1(Actor):
-    def handle_S(self, msg):
-        sleep(1)
-        self.send({'A': {}})
-
-class Enzim2(Actor):
-    def action(self):
-        self.waiting_for = ['A', 'E']
+class DecisionActor(Actor):
+    def __init__(self, waiting_for=[]):
+        Actor.__init__(self)
+        self.waiting_for = waiting_for
         self.got = []
 
-    def handle_A(self, msg):
-        self.got.append('A')
-        self.check_product()
-
-    def handle_E(self, msg):
-        self.got.append('E')
-        self.check_product()
-
-    def check_product(self):
+    def check_ok(self):
         if set(self.got) == set(self.waiting_for):
-            self.got.remove('A')
-            self.got.remove('E')
-            self.send({'B': {}})
+            print "sending destroy message for ", self.waiting_for
+            self.send_destroy()
+            self.send_health_message(True)
+        else:
+            print "wrong decision!"
+            self.send_health_message(False)
+            self.send_uncheck()
+        for i in self.waiting_for:
+            try:
+                self.got.remove(i)
+            except:
+                pass
 
-class Enzim3(Actor):
-    def handle_B(self, msg):
-        sleep(1)
-        self.send({'C': {}})
-
-class Enzim4(Actor):
-    def handle_C(self, msg):
-        sleep(1)
-        self.send({'D': {}})
-
-class Enzim5(Actor):
-    def handle_D(self, msg):
-        sleep(1)
-        self.send({'E': {}})
-        self.send({'Ure': {}})
-
-
-class Observer(Actor):
     def receive(self, msg):
-        topics = ['A', 'B', 'C', 'D', 'E', 'S', 'Ure']
-        for i, j in msg["payload"].items():
-            if i in topics:
-                print "Produced: ", i
-                try:
-                    self.products[i] += 1
-                except KeyError:
-                    self.products[i] = 1
-                panel_str = ""
-                for k in topics:
-                    try:
-                        panel_str += "" + str(self.products[k]) + "."
-                    except:
-                        panel_str += "" + str(0) + "."
+        payload = msg['payload']
 
-                panel_str = panel_str.replace('ure', 'u')
-                self.send({'LedPanelMessage': {'message': unicode(panel_str)}})
+        for i, j in payload.items():
+            #print "got ", i, "message..."
+            if i in self.waiting_for:
+                if i not in self.got:
+                    self.got.append(i)
+                print "got ", i, "message which I interested in..., got: ", self.got
 
 
-ProxyActor(brokers="192.168.1.59:5012:5013")
-Enzim1()
-Enzim2()
-Enzim3()
-Enzim4()
-Enzim5()
-Observer()
-Actor().send({'S': {}})
-Actor().send({'E': {}})
+        if len(self.got) == len(self.waiting_for):
+            for i in self.waiting_for:
+                if i in self.got:
+                    self.check_ok()
+
+    def handle_HealthMessage(self, msg):
+        self.got = []
+
+    def send_destroy(self):
+        self.send({'ParticleMessage': {'destroy': self.waiting_for}})
+
+    def send_uncheck(self):
+        self.send({'ParticleMessage': {'uncheck': self.waiting_for}})
+
+    def send_health_message(self, increase=None):
+        self.send({'HealthMessage': {'val': increase}})
+
+
+#ProxyActor(brokers="192.168.1.59:5012:5013")
+ProxyActor()
+DecisionActor(waiting_for=['Enzim1', 'S'])
+DecisionActor(waiting_for=['Enzim2', 'A', 'E'])
+DecisionActor(waiting_for=['Enzim3', 'B'])
+DecisionActor(waiting_for=['Enzim4', 'C'])
+DecisionActor(waiting_for=['Enzim5', 'D'])
 wait_all()

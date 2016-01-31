@@ -10,6 +10,6 @@ class Remaining(Actor):
             self.send({'LedPanelMessage': {'message': remaining}})
             sleep(1)
 
-ProxyActor()
+ProxyActor(brokers="192.168.1.59:5012:5013")
 Remaining()
 wait_all()
